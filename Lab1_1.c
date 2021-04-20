@@ -28,9 +28,9 @@
 
 
 //3 Semaphores
-sem_t sem_lock;
-sem_t sem_empty;
-sem_t sem_full;
+sem_t sem_lock; //для захватывания общего ресурса только одним потоком
+sem_t sem_empty; //buffer=0 (min)
+sem_t sem_full;// buffer=15 (max)
 
 //Time
 struct timeval CurrTime1, CurrTime2, CurrTime11, CurrTime22;
@@ -41,12 +41,11 @@ void* Supplier(void* arg);
 void* ConVar_Consumer(void* arg);
 void* ConVar_Supplier(void* arg);
 //---ZADAIE 1---------
-//Buffer
 int Buffer=0;
 
 void* Consumer(void* arg){
-	for (int i=0;i<10;i++){
-		sem_wait(&sem_full); // «Потребитель» Блокируется, если Буфер пуст.
+	for (int i=0;i<25;i++){
+		sem_wait(&sem_empty); // «Потребитель» Блокируется, если Буфер пуст.
 		sem_wait(&sem_lock);
 
 		gettimeofday(&CurrTime1,NULL);
@@ -57,13 +56,13 @@ void* Consumer(void* arg){
 		gettimeofday(&CurrTime2,NULL);
 		newTime_Consumer = time(NULL);
 
-		printf("\nStart: %s %ld (ms)\n",ctime(&oldTime_Consumer),CurrTime1.tv_usec);
+		printf("\n-->Run: %s %ld (ms)\n",ctime(&oldTime_Consumer),CurrTime1.tv_usec);
 		printf("Consumer: -1 -> Buffer = %d\n",Buffer);
-		printf("Finish: %s %ld (ms)\n",ctime(&newTime_Consumer),CurrTime2.tv_usec);
+		printf("-->Stop: %s %ld (ms)\n",ctime(&newTime_Consumer),CurrTime2.tv_usec);
 		fflush(stdout);
 
 		sem_post(&sem_lock);
-		sem_post(&sem_empty);
+		sem_post(&sem_full);
 		usleep(300);
 
 	}
@@ -72,7 +71,7 @@ void* Consumer(void* arg){
 
 void* Supplier(void* arg){
 	for (int i=0;i<45;i++) {
-		sem_wait(&sem_empty);
+		sem_wait(&sem_full);
 		sem_wait(&sem_lock);
 
 		gettimeofday(&CurrTime11,NULL);
@@ -83,13 +82,13 @@ void* Supplier(void* arg){
 		gettimeofday(&CurrTime22,NULL);
 		newTime_Supplier = time(NULL);
 
-		printf("\nStart: %s %ld (ms)\n",ctime(&oldTime_Supplier),CurrTime11.tv_usec);
+		printf("\n-->Run: %s %ld (ms)\n",ctime(&oldTime_Supplier),CurrTime11.tv_usec);
 		printf("Supplier: +1 -> Buffer = %d\n",Buffer);
-		printf("Finish: %s %ld (ms)\n",ctime(&newTime_Supplier),CurrTime22.tv_usec);
+		printf("-->Stop: %s %ld (ms)\n",ctime(&newTime_Supplier),CurrTime22.tv_usec);
 		fflush(stdout);
 
 		sem_post(&sem_lock);
-		sem_post(&sem_full);
+		sem_post(&sem_empty);
 		usleep(300);
 	}
 	return EXIT_SUCCESS;
@@ -123,9 +122,9 @@ void* ConVar_Consumer(void* arg){
 		gettimeofday(&CurrTimeCV2,NULL);
 		newTimeCV_Consumer = time(NULL);
 
-		printf("Start: %s %ld (ms)\n",ctime(&oldTimeCV_Consumer),CurrTimeCV1.tv_usec);
+		printf("-->Run:%s %ld (ms)\n",ctime(&oldTimeCV_Consumer),CurrTimeCV1.tv_usec);
 		printf("Consumer: -1 -> Buffer = %d\n",Buffer);
-		printf("Finish: %s %ld (ms)\n",ctime(&newTimeCV_Consumer),CurrTimeCV2.tv_usec);
+		printf("-->Stop:%s %ld (ms)\n",ctime(&newTimeCV_Consumer),CurrTimeCV2.tv_usec);
 
 		fflush(stdout);
 
@@ -135,7 +134,6 @@ void* ConVar_Consumer(void* arg){
 		pthread_mutex_unlock(&mutex);
 		sleep(1);
 	}
-	return EXIT_SUCCESS;
 }
 
 void* ConVar_Supplier(void* arg){
@@ -156,9 +154,9 @@ void* ConVar_Supplier(void* arg){
 		gettimeofday(&CurrTimeCV22,NULL);
 		newTimeCV_Supplier = time(NULL);
 
-		printf("\nStart: %s %ld (ms)\n",ctime(&oldTimeCV_Supplier),CurrTimeCV11.tv_usec);
+		printf("\n-->Run:%s %ld (ms)\n",ctime(&oldTimeCV_Supplier),CurrTimeCV11.tv_usec);
 		printf("Supplier: +1 -> Buffer = %d\n",Buffer);
-		printf("Finish: %s %ld (ms)\n",ctime(&newTimeCV_Supplier),CurrTimeCV22.tv_usec);
+		printf("-->Stop%s %ld (ms)\n",ctime(&newTimeCV_Supplier),CurrTimeCV22.tv_usec);
 		fflush(stdout);
 
 		BuffEmpty = 0;
@@ -166,7 +164,6 @@ void* ConVar_Supplier(void* arg){
 		pthread_cond_signal(&CondEmpty);
 		pthread_mutex_unlock(&mutex);
 	}
-	return EXIT_SUCCESS;
 }
 
 void Menu(){
@@ -184,9 +181,9 @@ int main(int argc, char *argv[]){
 		fflush(stdout);
 		pthread_t thread_Consumer, thread_Supplier;
 		printf("Semaphores:\n");
-		sem_init(&sem_empty,NULL,0);
-		sem_init(&sem_full,NULL,15);
-		sem_init(&sem_lock,NULL,1);
+		sem_init(&sem_empty,'\0',0);
+		sem_init(&sem_full,'\0',15);
+		sem_init(&sem_lock,'\0',1);
 
 		pthread_create(&thread_Consumer,NULL,&Consumer,NULL);
 		pthread_create(&thread_Supplier,NULL,&Supplier,NULL);
@@ -197,7 +194,6 @@ int main(int argc, char *argv[]){
 
 		pthread_join(thread_Consumer,NULL);
 		pthread_join(thread_Supplier,NULL);
-
 		return EXIT_SUCCESS;
 		break;
 
